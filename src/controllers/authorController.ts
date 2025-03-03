@@ -1,50 +1,37 @@
 import AuthorModel from "../models/author";
+import client from "../config/database";
 
 class AuthorController {
-    private authors: AuthorModel[] = [];
-    private nextId: number = 1;
+    async createAuthor(name: string, age: number, books: string[], nationality: string, observations?: string): Promise<AuthorModel> {
+        const result = await client.query(
+            'INSERT INTO authors (name, age, books, nationality, observations) VALUES ($1, $2, $3, $4, $5) RETURNING *',
+            [name, age, books, nationality, observations]
+        );
+        return result.rows[0];
+    }
 
-    createAuthor(name: string, age: number, books: string[], nacionality: string, observations?: string): AuthorModel {
-        const id = this.nextId +1;
-        const newAuthor = new AuthorModel(id, name, age, books, nacionality, observations);
-        this.authors.push(newAuthor);
-        return newAuthor;
-    };
+    async getAuthors(): Promise<AuthorModel[]> {
+        const result = await client.query('SELECT * FROM authors');
+        return result.rows;
+    }
 
-    getAuthors(): AuthorModel[] {
-        return this.authors;
-    };
+    async getAuthorById(id: number): Promise<AuthorModel | undefined> {
+        const result = await client.query('SELECT * FROM authors WHERE id = $1', [id]);
+        return result.rows[0];
+    }
 
-    getAuthorById(id: number): AuthorModel | undefined {
-        return this.authors.find(author => author.id === id);
-    };
+    async updateAuthor(id: number, newName: string, newAge: number, newBooks: string[], newNationality: string, newObservations?: string): Promise<AuthorModel | undefined> {
+        const result = await client.query(
+            'UPDATE authors SET name = $1, age = $2, books = $3, nationality = $4, observations = $5 WHERE id = $6 RETURNING *',
+            [newName, newAge, newBooks, newNationality, newObservations, id]
+        );
+        return result.rows[0];
+    }
 
-    updateAuthor(id: number, newName: string, newAge: number, newBooks: string[], newNacionality: string, newObservations?: string): AuthorModel | undefined {
-        const author = this.getAuthorById(id);
-        if (!author) return undefined;
-
-        author.name = newName;
-        author.age = newAge;
-        author.books = newBooks;
-        author.nacionality = newNacionality;
-        author.observations = newObservations;
-
-        return author;
-    };
-
-    deleteAuthor(id: number): boolean {
-        const author = this.getAuthorById(id);
-        if (!author) return false;
-
-        const index = this.authors.indexOf(author);
-        if (index > -1) {
-            this.authors.splice(index, 1);
-            return true;
-        };
-
-        return false;
-    };
-
-};
+    async deleteAuthor(id: number): Promise<boolean> {
+        const result = await client.query('DELETE FROM authors WHERE id = $1 RETURNING *', [id]);
+        return result.rowCount !== null && result.rowCount > 0;
+    }
+}
 
 export default new AuthorController();
